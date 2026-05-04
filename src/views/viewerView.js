@@ -127,14 +127,15 @@ export function renderViewerView(container, { id, onBack }) {
         <details class="viewer-foldout">
           <summary>模型控制</summary>
           <div class="viewer-foldout-body">
-            <div class="viewer-translate-title" style="font-size:12px; color:rgba(234,248,255,0.8); margin-bottom:8px;">控制对象</div>
-            <div class="viewer-bg-row" style="margin-bottom:12px;">
-              <select data-el="target-select" style="background: rgba(3,78,114,0.9); color: #eaf8ff; border: 1px solid rgba(148,226,255,0.14); border-radius: 4px; padding: 4px; flex:1;">
+            <div class="viewer-section-title">控制对象</div>
+            <div class="viewer-bg-row viewer-bg-row--compact">
+              <select class="viewer-select" data-el="target-select">
                 <option value="model" selected>主体模型</option>
                 <option value="foundation">地基模型</option>
               </select>
             </div>
 
+            <div class="viewer-slider-row">
               <label>缩放比例</label>
               <div class="viewer-slider-controls">
                 <input type="range" min="0.1" max="100" step="0.1" value="1" data-el="target-scale" />
@@ -142,7 +143,7 @@ export function renderViewerView(container, { id, onBack }) {
               </div>
             </div>
 
-            <div class="viewer-translate-title" style="font-size:12px; color:rgba(234,248,255,0.8); margin-bottom:8px;">位置平移</div>
+            <div class="viewer-section-title">位置平移</div>
             <div class="viewer-translate-grid">
               <button type="button" class="viewer-translate-btn viewer-translate-btn--up" data-act="move-model" data-axis="y" data-dir="1">上</button>
               <button type="button" class="viewer-translate-btn viewer-translate-btn--front" data-act="move-model" data-axis="z" data-dir="1">前</button>
@@ -152,9 +153,9 @@ export function renderViewerView(container, { id, onBack }) {
               <button type="button" class="viewer-translate-btn viewer-translate-btn--back" data-act="move-model" data-axis="z" data-dir="-1">后</button>
               <button type="button" class="viewer-translate-btn viewer-translate-btn--down" data-act="move-model" data-axis="y" data-dir="-1">下</button>
             </div>
-            <div class="viewer-translate-hint" style="margin-bottom:12px;">点击可按步长平移模型，便于微调构图。</div>
+            <div class="viewer-translate-hint viewer-translate-hint--spaced">点击可按步长平移模型，便于微调构图。</div>
             
-            <div class="viewer-translate-title" style="font-size:12px; color:rgba(234,248,255,0.8); margin-bottom:8px;">角度旋转</div>
+            <div class="viewer-section-title">角度旋转</div>
             <div class="viewer-translate-grid">
               <button type="button" class="viewer-translate-btn" data-act="rotate-model" data-axis="x" data-dir="1">X轴 +90°</button>
               <button type="button" class="viewer-translate-btn" data-act="rotate-model" data-axis="y" data-dir="1">Y轴 +90°</button>
@@ -164,7 +165,7 @@ export function renderViewerView(container, { id, onBack }) {
               <button type="button" class="viewer-translate-btn" data-act="rotate-model" data-axis="z" data-dir="-1">Z轴 -90°</button>
             </div>
             
-            <label class="viewer-toggle-line" style="margin-top:16px; border-top:1px solid rgba(148,226,255,0.16); padding-top:12px;">
+            <label class="viewer-toggle-line viewer-toggle-line--divider">
               <input type="checkbox" data-el="auto-rotate" />
               <span>开启自动旋转展示</span>
             </label>
@@ -179,19 +180,19 @@ export function renderViewerView(container, { id, onBack }) {
               <input id="viewer-bg-color" type="color" value="#aca9a9" data-el="bg-color" />
             </div>
 
-            <label class="viewer-toggle-line" style="margin-top:12px;">
+            <label class="viewer-toggle-line viewer-toggle-line--spaced">
               <input type="checkbox" data-el="toggle-grid" />
               <span>显示参考线</span>
             </label>
 
-            <div class="viewer-translate-title" style="font-size:12px; color:rgba(234,248,255,0.8); margin-top:16px; margin-bottom:8px; border-top:1px solid rgba(148,226,255,0.16); padding-top:12px;">地基模型背景</div>
+            <div class="viewer-section-title viewer-section-title--divider">地基模型背景</div>
             <label class="viewer-toggle-line">
               <input type="checkbox" data-el="toggle-foundation" />
               <span>启用地基背景</span>
             </label>
-            <div class="viewer-bg-row" style="margin-top:8px;">
+            <div class="viewer-bg-row viewer-bg-row--compact">
               <label>选择地基</label>
-              <select data-el="foundation-select" style="background: rgba(3,78,114,0.9); color: #eaf8ff; border: 1px solid rgba(148,226,255,0.14); border-radius: 4px; padding: 4px; flex:1; margin-left:8px;">
+              <select class="viewer-select" data-el="foundation-select">
                 ${FOUNDATIONS_CONFIG.map(f => `<option value="${encodeHtml(f.id)}">${encodeHtml(f.title)}</option>`).join('')}
               </select>
             </div>
