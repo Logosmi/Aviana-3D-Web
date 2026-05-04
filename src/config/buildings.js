@@ -6,6 +6,7 @@ export const BUILDINGS_CONFIG = [
         info: "“鸾霄”工作室是学生自发组成的，“VoxelCAUC”中的很大一部分建筑是由他们建设的。",
         description: "中航大大学主教学楼是中航大东丽校区标志性建筑。气势雄伟庄重。",
         image: "/assets/cards/demo.png",
+        sandboxEnabled: true,
         // model: { obj: "/assets/models/bei1/bei1.obj", mtl: "/assets/models/bei1/bei1.mtl", texturePath: "/assets/models/bei1/" }
         model: {
             format: "obj",
@@ -19,6 +20,7 @@ export const BUILDINGS_CONFIG = [
         info: "神秘至极",
         description: "这是一只可口的福瑞，被抓来当展示实验体。",
         image: "/assets/cards/demo.png",
+        sandboxEnabled: true,
         model: "/assets/models/luoke.glb"
     },
     {
@@ -28,6 +30,7 @@ export const BUILDINGS_CONFIG = [
         info: "Unknown",
         description: "Unknow",
         image: "/assets/cards/demo.png",
+        sandboxEnabled: true,
         model: "/assets/models/phoenix_bird.glb"
     },
     {
@@ -37,6 +40,7 @@ export const BUILDINGS_CONFIG = [
         info: "Unknown",
         description: "Unknow",
         image: "/assets/cards/demo.png",
+        sandboxEnabled: true,
         model: "/assets/models/miyu.glb"
     },
     {
@@ -46,6 +50,7 @@ export const BUILDINGS_CONFIG = [
         info: "Unknown",
         description: "Unknow",
         image: "/assets/cards/demo.png",
+        sandboxEnabled: true,
         model: {
             format: "obj",
             path: "/assets/models/3/"
@@ -58,6 +63,7 @@ export const BUILDINGS_CONFIG = [
         info: "Unknown",
         description: "Unknow",
         image: "/assets/cards/demo.png",
+        sandboxEnabled: true,
         model: {
             format: "obj",
             path: "/assets/models/5/"

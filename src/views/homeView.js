@@ -22,7 +22,32 @@ const INTRO_SLIDES = [
 ];
 
 const ABOUT_INFO =
-  '像素中航大：基于体素建模的虚拟校园重建。'
+  '像素中航大：基于体素建模的虚拟校园重建。';
+
+const SANDBOX_PRESET_POSITIONS = [
+  { x: 18, y: 20 },
+  { x: 208, y: 34 },
+  { x: 88, y: 166 },
+  { x: 256, y: 194 },
+  { x: 26, y: 286 },
+  { x: 204, y: 308 }
+];
+
+const SANDBOX_ITEM_WIDTH = 172;
+const SANDBOX_ITEM_HEIGHT = 186;
+
+function encodeHtml(raw) {
+  return String(raw || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
 
 function makeCardHtml(card) {
   return `
@@ -51,11 +76,73 @@ function makeSlideHtml(slide, idx, active) {
   `;
 }
 
+function makeSandboxLibraryHtml(card, isPlaced) {
+  return `
+    <button
+      type="button"
+      class="sandbox-library-card ${isPlaced ? 'is-active' : ''}"
+      data-act="add-sandbox-item"
+      data-model-id="${encodeHtml(card.id)}"
+      ${isPlaced ? 'disabled' : ''}
+    >
+      <div class="sandbox-library-media">
+        <img src="${encodeHtml(card.imageUrl)}" alt="${encodeHtml(card.title)}" class="sandbox-library-image" loading="lazy" />
+      </div>
+      <div class="sandbox-library-copy">
+        <strong>${encodeHtml(card.title)}</strong>
+        <span>${encodeHtml(card.author || '未知工作室')}</span>
+      </div>
+      <span class="sandbox-library-action">${isPlaced ? '已在沙盒' : '添加到沙盒'}</span>
+    </button>
+  `;
+}
+
+function makeSandboxItemHtml(item, card, index) {
+  return `
+    <article
+      class="sandbox-item"
+      data-instance-id="${encodeHtml(item.instanceId)}"
+      style="transform: translate3d(${item.x}px, ${item.y}px, 0); z-index: ${20 + index};"
+    >
+      <button
+        type="button"
+        class="sandbox-item-remove"
+        data-act="remove-sandbox-item"
+        data-instance-id="${encodeHtml(item.instanceId)}"
+        aria-label="移除 ${encodeHtml(card.title)}"
+        title="移除"
+      >×</button>
+      <div class="sandbox-item-badge">Sandbox</div>
+      <div class="sandbox-item-media">
+        <img src="${encodeHtml(card.imageUrl)}" alt="${encodeHtml(card.title)}" class="sandbox-item-image" loading="lazy" />
+      </div>
+      <div class="sandbox-item-copy">
+        <h3>${encodeHtml(card.title)}</h3>
+        <p>${encodeHtml(card.author || '未知工作室')}</p>
+      </div>
+    </article>
+  `;
+}
+
 export function renderHomeView(container, { onOpenModel, initialView = 'intro' }) {
   const cards = BUILDINGS_CONFIG.map(buildCardResource);
+  const sandboxCatalog = cards.filter((card) => card.sandboxEnabled);
+  const sandboxCardMap = new Map(sandboxCatalog.map((card) => [card.id, card]));
   let activeTab = 'campus';
   let slideIndex = 0;
   let introVisible = initialView !== 'showcase';
+  let sandboxSequence = 0;
+  let sandboxDragState = null;
+  let sandboxItems = sandboxCatalog.slice(0, Math.min(2, sandboxCatalog.length)).map((card, index) => {
+    const preset = SANDBOX_PRESET_POSITIONS[index % SANDBOX_PRESET_POSITIONS.length];
+    sandboxSequence += 1;
+    return {
+      instanceId: `sandbox-${sandboxSequence}`,
+      modelId: card.id,
+      x: preset.x,
+      y: preset.y
+    };
+  });
 
   container.innerHTML = `
     <main class="home-root">
@@ -81,15 +168,42 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
       </section>
 
       <section class="panel about hidden" id="about-panel">
-        <div class="about-card">
-          <h2>项目简介</h2>
-          <p>${ABOUT_INFO}</p>
-          <h3>版本信息</h3>
-          <p>v0.0.1</p>
-          <h3>交流群</h3>
-          <img src="/assets/qrcode_group.jpg" alt="交流群二维码" height="200" />
-          <p>CAUCraft 神人竞技场：496981669</p>
-          <p class="icp">暂无</p>
+        <div class="about-layout">
+          <div class="about-card">
+            <h2>项目简介</h2>
+            <p>${ABOUT_INFO}</p>
+            <h3>版本信息</h3>
+            <p>v0.0.1</p>
+            <h3>交流群</h3>
+            <img src="/assets/qrcode_group.jpg" alt="交流群二维码" height="200" />
+            <p>CAUCraft 神人竞技场：496981669</p>
+            <p class="icp">暂无</p>
+          </div>
+
+          <section class="about-sandbox">
+            <div class="about-sandbox-head">
+              <div>
+                <p class="about-sandbox-kicker">Sandbox</p>
+                <h2>模型沙盒分区</h2>
+              </div>
+              <button type="button" class="sandbox-clear-btn" data-act="clear-sandbox">清空</button>
+            </div>
+            <p class="about-sandbox-copy">
+              这里会收纳已启用的模型卡片。点击下方仓库可添加，拖拽卡片可自由摆放，用于快速浏览和编排展示组合。
+            </p>
+            <div class="sandbox-meta">
+              <span data-el="sandbox-count">0 / 0 已摆放</span>
+              <span>拖拽卡片微调位置</span>
+            </div>
+            <div class="sandbox-board" data-el="sandbox-board"></div>
+            <div class="sandbox-library">
+              <div class="sandbox-library-head">
+                <h3>已启用模型仓库</h3>
+                <p>${sandboxCatalog.length} 个模型可加入沙盒</p>
+              </div>
+              <div class="sandbox-library-grid" data-el="sandbox-library"></div>
+            </div>
+          </section>
         </div>
       </section>
 
@@ -116,6 +230,78 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
   const switchTrack = container.querySelector('.switch-track');
   const campusPanel = container.querySelector('#campus-panel');
   const aboutPanel = container.querySelector('#about-panel');
+  const sandboxBoard = container.querySelector('[data-el="sandbox-board"]');
+  const sandboxLibrary = container.querySelector('[data-el="sandbox-library"]');
+  const sandboxCount = container.querySelector('[data-el="sandbox-count"]');
+
+  function createSandboxItem(modelId) {
+    const preset = SANDBOX_PRESET_POSITIONS[sandboxSequence % SANDBOX_PRESET_POSITIONS.length];
+    sandboxSequence += 1;
+    return {
+      instanceId: `sandbox-${sandboxSequence}`,
+      modelId,
+      x: preset.x,
+      y: preset.y
+    };
+  }
+
+  function syncSandboxBounds() {
+    if (!sandboxBoard || sandboxBoard.clientWidth <= 0 || sandboxBoard.clientHeight <= 0) return;
+
+    const maxX = Math.max(sandboxBoard.clientWidth - SANDBOX_ITEM_WIDTH, 0);
+    const maxY = Math.max(sandboxBoard.clientHeight - SANDBOX_ITEM_HEIGHT, 0);
+    let changed = false;
+
+    sandboxItems = sandboxItems.map((item) => {
+      const nextX = clamp(item.x, 0, maxX);
+      const nextY = clamp(item.y, 0, maxY);
+      if (nextX !== item.x || nextY !== item.y) {
+        changed = true;
+        return { ...item, x: nextX, y: nextY };
+      }
+      return item;
+    });
+
+    if (changed) {
+      sandboxBoard.querySelectorAll('.sandbox-item').forEach((itemEl) => {
+        const target = sandboxItems.find((entry) => entry.instanceId === itemEl.getAttribute('data-instance-id'));
+        if (!target) return;
+        itemEl.style.transform = `translate3d(${target.x}px, ${target.y}px, 0)`;
+      });
+    }
+  }
+
+  function syncSandboxUi() {
+    if (!sandboxBoard || !sandboxLibrary || !sandboxCount) return;
+
+    sandboxCount.textContent = `${sandboxItems.length} / ${sandboxCatalog.length} 已摆放`;
+
+    if (!sandboxItems.length) {
+      sandboxBoard.innerHTML = `
+        <div class="sandbox-board-empty">
+          <strong>沙盒还空着</strong>
+          <span>从下方模型仓库里挑几张卡片，拖进这块区域开始编排。</span>
+        </div>
+      `;
+    } else {
+      sandboxBoard.innerHTML = sandboxItems
+        .map((item, index) => {
+          const card = sandboxCardMap.get(item.modelId);
+          return card ? makeSandboxItemHtml(item, card, index) : '';
+        })
+        .join('');
+    }
+
+    sandboxLibrary.innerHTML = sandboxCatalog.length
+      ? sandboxCatalog
+          .map((card) => makeSandboxLibraryHtml(card, sandboxItems.some((item) => item.modelId === card.id)))
+          .join('')
+      : '<p class="sandbox-empty-copy">当前还没有启用沙盒的模型。</p>';
+
+    if (activeTab === 'about') {
+      requestAnimationFrame(syncSandboxBounds);
+    }
+  }
 
   function syncTabUi() {
     const campusActive = activeTab === 'campus';
@@ -129,6 +315,10 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
 
     switchTrack?.classList.toggle('left', campusActive);
     switchTrack?.classList.toggle('right', !campusActive);
+
+    if (!campusActive) {
+      syncSandboxUi();
+    }
   }
 
   function syncSlideUi() {
@@ -183,6 +373,31 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
       if (!target) return;
       onOpenModel(target.id, introVisible ? 'intro' : 'showcase');
     });
+  });
+
+  aboutPanel?.addEventListener('click', (evt) => {
+    const clearButton = evt.target.closest('[data-act="clear-sandbox"]');
+    if (clearButton) {
+      sandboxItems = [];
+      syncSandboxUi();
+      return;
+    }
+
+    const addButton = evt.target.closest('[data-act="add-sandbox-item"]');
+    if (addButton) {
+      const modelId = addButton.getAttribute('data-model-id') || '';
+      if (!modelId || sandboxItems.some((item) => item.modelId === modelId)) return;
+      sandboxItems = [...sandboxItems, createSandboxItem(modelId)];
+      syncSandboxUi();
+      return;
+    }
+
+    const removeButton = evt.target.closest('[data-act="remove-sandbox-item"]');
+    if (removeButton) {
+      const instanceId = removeButton.getAttribute('data-instance-id') || '';
+      sandboxItems = sandboxItems.filter((item) => item.instanceId !== instanceId);
+      syncSandboxUi();
+    }
   });
 
   container.querySelectorAll('[data-slide-to]').forEach((dotButton) => {
@@ -379,6 +594,63 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
     }
   }
 
+  function onSandboxPointerDown(evt) {
+    if (activeTab !== 'about') return;
+    if (evt.button !== 0) return;
+
+    const itemEl = evt.target.closest('.sandbox-item');
+    if (!itemEl || !sandboxBoard?.contains(itemEl)) return;
+    if (evt.target.closest('button')) return;
+
+    const instanceId = itemEl.getAttribute('data-instance-id') || '';
+    const item = sandboxItems.find((entry) => entry.instanceId === instanceId);
+    if (!item) return;
+
+    const boardRect = sandboxBoard.getBoundingClientRect();
+    const itemRect = itemEl.getBoundingClientRect();
+    sandboxDragState = {
+      pointerId: evt.pointerId,
+      instanceId,
+      startX: evt.clientX,
+      startY: evt.clientY,
+      originX: item.x,
+      originY: item.y,
+      maxX: Math.max(boardRect.width - itemRect.width, 0),
+      maxY: Math.max(boardRect.height - itemRect.height, 0),
+      itemEl
+    };
+
+    itemEl.classList.add('is-dragging');
+    evt.preventDefault();
+  }
+
+  function onSandboxPointerMove(evt) {
+    if (!sandboxDragState || evt.pointerId !== sandboxDragState.pointerId) return;
+
+    const dx = evt.clientX - sandboxDragState.startX;
+    const dy = evt.clientY - sandboxDragState.startY;
+    const nextX = clamp(sandboxDragState.originX + dx, 0, sandboxDragState.maxX);
+    const nextY = clamp(sandboxDragState.originY + dy, 0, sandboxDragState.maxY);
+
+    sandboxItems = sandboxItems.map((item) =>
+      item.instanceId === sandboxDragState.instanceId ? { ...item, x: nextX, y: nextY } : item
+    );
+
+    sandboxDragState.itemEl.style.transform = `translate3d(${nextX}px, ${nextY}px, 0)`;
+  }
+
+  function onSandboxPointerUp(evt) {
+    if (!sandboxDragState || evt.pointerId !== sandboxDragState.pointerId) return;
+    sandboxDragState.itemEl.classList.remove('is-dragging');
+    sandboxDragState = null;
+  }
+
+  function onSandboxResize() {
+    if (activeTab === 'about') {
+      syncSandboxBounds();
+    }
+  }
+
   const gestureTarget = document;
   gestureTarget.addEventListener('pointerdown', onPointerDown, true);
   gestureTarget.addEventListener('pointermove', onPointerMove, true);
@@ -391,10 +663,16 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
   gestureTarget.addEventListener('touchcancel', onTouchCancel, { passive: false, capture: true });
   gestureTarget.addEventListener('wheel', onWheel, { passive: true, capture: true });
   window.addEventListener('keydown', onKeyDown);
+  aboutPanel?.addEventListener('pointerdown', onSandboxPointerDown);
+  window.addEventListener('pointermove', onSandboxPointerMove);
+  window.addEventListener('pointerup', onSandboxPointerUp);
+  window.addEventListener('pointercancel', onSandboxPointerUp);
+  window.addEventListener('resize', onSandboxResize);
 
   syncTabUi();
   syncSlideUi();
   syncIntroUi();
+  syncSandboxUi();
 
   function onShowcaseBackClick(e) {
     e.stopPropagation();
@@ -421,6 +699,11 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
     gestureTarget.removeEventListener('touchcancel', onTouchCancel, { capture: true });
     gestureTarget.removeEventListener('wheel', onWheel, { capture: true });
     window.removeEventListener('keydown', onKeyDown);
+    aboutPanel?.removeEventListener('pointerdown', onSandboxPointerDown);
+    window.removeEventListener('pointermove', onSandboxPointerMove);
+    window.removeEventListener('pointerup', onSandboxPointerUp);
+    window.removeEventListener('pointercancel', onSandboxPointerUp);
+    window.removeEventListener('resize', onSandboxResize);
     showcaseBackBtn?.removeEventListener('click', onShowcaseBackClick);
     showcaseBackBtn?.remove();
     container.innerHTML = '';
