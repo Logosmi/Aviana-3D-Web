@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
@@ -85,6 +86,12 @@ export function renderViewerView(container, { id, onBack }) {
           </div>
           <div class="viewer-intro-panel hidden" data-el="intro-panel">${encodeHtml(building.description || building.info || '暂无介绍')}</div>
         </div>
+      </div>
+
+      <div class="viewer-camera-state" data-el="camera-state">
+        <div class="viewer-camera-mode" data-el="camera-mode">Orbit View</div>
+        <div class="viewer-camera-hint" data-el="camera-hint">Right click to enter free camera</div>
+        <div class="viewer-camera-pos" data-el="camera-pos">Pos 0.0 / 24.0 / 70.0</div>
       </div>
 
       <aside class="viewer-dock" data-el="viewer-controls">
@@ -227,6 +234,10 @@ export function renderViewerView(container, { id, onBack }) {
   const progressText = container.querySelector('[data-el="progress-text"]');
   const progressFill = container.querySelector('[data-el="progress-fill"]');
   const errorPanel = container.querySelector('[data-el="error-panel"]');
+  const cameraState = container.querySelector('[data-el="camera-state"]');
+  const cameraMode = container.querySelector('[data-el="camera-mode"]');
+  const cameraHint = container.querySelector('[data-el="camera-hint"]');
+  const cameraPos = container.querySelector('[data-el="camera-pos"]');
 
   function syncUi() {
     loadingMask?.classList.toggle('hidden', !loading);
@@ -280,6 +291,18 @@ export function renderViewerView(container, { id, onBack }) {
 
     const controls = new OrbitControls(camera, canvas);
     controls.enableDamping = true;
+    controls.mouseButtons.RIGHT = null;
+
+    const freeCameraControls = new PointerLockControls(camera, document.body);
+    const movementState = {
+      forward: false,
+      backward: false,
+      left: false,
+      right: false
+    };
+    let freeCameraSpeed = 18;
+    let lastFrameTime = performance.now();
+    let lastCameraSignature = '';
 
     let hemi = new THREE.HemisphereLight(0xb5e6ff, 0x11213a, 1.2);
     scene.add(hemi);
@@ -342,9 +365,11 @@ export function renderViewerView(container, { id, onBack }) {
       camera.near = Math.max(diagonal / 200, 0.01);
       camera.far = diagonal * 15;
       camera.position.set(diagonal * 0.8, diagonal * 0.42, diagonal * 0.8);
+      freeCameraSpeed = Math.max(diagonal * 0.22, 8);
       camera.updateProjectionMatrix();
       controls.update();
       lightHelper.update();
+      syncCameraHud();
 
       loading = false;
       progress = 100;
@@ -533,6 +558,109 @@ export function renderViewerView(container, { id, onBack }) {
       if (grid && toggleGridEl) {
         grid.visible = toggleGridEl.checked;
       }
+    }
+
+    function clearMovementState() {
+      movementState.forward = false;
+      movementState.backward = false;
+      movementState.left = false;
+      movementState.right = false;
+    }
+
+    function syncCameraHud() {
+      const isFreeCamera = freeCameraControls.isLocked;
+      const signature = `${camera.position.x.toFixed(1)} / ${camera.position.y.toFixed(1)} / ${camera.position.z.toFixed(1)}`;
+
+      cameraState?.classList.toggle('is-active', isFreeCamera);
+
+      if (cameraMode) {
+        cameraMode.textContent = isFreeCamera ? 'Free Camera' : 'Orbit View';
+      }
+
+      if (cameraHint) {
+        cameraHint.textContent = isFreeCamera
+          ? 'WASD move | Right click or Esc to exit'
+          : 'Right click to enter free camera';
+      }
+
+      if (cameraPos && signature !== lastCameraSignature) {
+        cameraPos.textContent = `Pos ${signature}`;
+        lastCameraSignature = signature;
+      }
+    }
+
+    function setFreeCameraEnabled(nextLocked) {
+      if (nextLocked === freeCameraControls.isLocked) {
+        syncCameraHud();
+        return;
+      }
+
+      if (nextLocked) {
+        freeCameraControls.lock();
+      } else {
+        freeCameraControls.unlock();
+      }
+    }
+
+    function updateFreeCamera(deltaSeconds) {
+      if (!freeCameraControls.isLocked) return;
+
+      const moveRight = Number(movementState.right) - Number(movementState.left);
+      const moveForward = Number(movementState.forward) - Number(movementState.backward);
+      if (!moveRight && !moveForward) return;
+
+      const direction = new THREE.Vector2(moveRight, moveForward).normalize();
+      const step = freeCameraSpeed * deltaSeconds;
+
+      freeCameraControls.moveRight(direction.x * step);
+      freeCameraControls.moveForward(direction.y * step);
+    }
+
+    function onFreeCameraLock() {
+      controls.enabled = false;
+      controls.autoRotate = false;
+      if (autoRotateEl) autoRotateEl.checked = false;
+      syncCameraHud();
+    }
+
+    function onFreeCameraUnlock() {
+      controls.enabled = true;
+      clearMovementState();
+      syncCameraHud();
+    }
+
+    function onCanvasPointerDown(event) {
+      if (event.button !== 2) return;
+      event.preventDefault();
+      setFreeCameraEnabled(!freeCameraControls.isLocked);
+    }
+
+    function onCanvasContextMenu(event) {
+      event.preventDefault();
+    }
+
+    function onViewerKeyDown(event) {
+      if (!freeCameraControls.isLocked) return;
+
+      if (event.code === 'KeyW') movementState.forward = true;
+      if (event.code === 'KeyS') movementState.backward = true;
+      if (event.code === 'KeyA') movementState.left = true;
+      if (event.code === 'KeyD') movementState.right = true;
+
+      if (event.code === 'KeyW' || event.code === 'KeyS' || event.code === 'KeyA' || event.code === 'KeyD') {
+        event.preventDefault();
+      }
+    }
+
+    function onViewerKeyUp(event) {
+      if (event.code === 'KeyW') movementState.forward = false;
+      if (event.code === 'KeyS') movementState.backward = false;
+      if (event.code === 'KeyA') movementState.left = false;
+      if (event.code === 'KeyD') movementState.right = false;
+    }
+
+    function onViewerBlur() {
+      clearMovementState();
     }
 
     function applyTranslation(axis, direction) {
@@ -762,6 +890,13 @@ export function renderViewerView(container, { id, onBack }) {
       }
     });
     targetScaleEl?.addEventListener('input', applyScale);
+    freeCameraControls.addEventListener('lock', onFreeCameraLock);
+    freeCameraControls.addEventListener('unlock', onFreeCameraUnlock);
+    canvas.addEventListener('pointerdown', onCanvasPointerDown);
+    canvas.addEventListener('contextmenu', onCanvasContextMenu);
+    window.addEventListener('keydown', onViewerKeyDown);
+    window.addEventListener('keyup', onViewerKeyUp);
+    window.addEventListener('blur', onViewerBlur);
 
     // initialize
     // ensure fullbright control reflects default
@@ -771,12 +906,18 @@ export function renderViewerView(container, { id, onBack }) {
     updateDirFromUi();
     onBgChange();
     onLightHelperChange();
+    syncCameraHud();
     // attempt to apply immediately if model already exists
     if (pendingFullbright && model) applyFullbright(true);
 
     let rafId = 0;
     const tick = () => {
+      const now = performance.now();
+      const deltaSeconds = Math.min((now - lastFrameTime) / 1000, 0.05);
+      lastFrameTime = now;
+      updateFreeCamera(deltaSeconds);
       controls.update();
+      syncCameraHud();
       if (lightHelper.visible) lightHelper.update();
       renderer.render(scene, camera);
       rafId = requestAnimationFrame(tick);
@@ -794,8 +935,17 @@ export function renderViewerView(container, { id, onBack }) {
 
     disposeRenderer = () => {
       cancelAnimationFrame(rafId);
+      setFreeCameraEnabled(false);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('keydown', onViewerKeyDown);
+      window.removeEventListener('keyup', onViewerKeyUp);
+      window.removeEventListener('blur', onViewerBlur);
+      canvas.removeEventListener('pointerdown', onCanvasPointerDown);
+      canvas.removeEventListener('contextmenu', onCanvasContextMenu);
+      freeCameraControls.removeEventListener('lock', onFreeCameraLock);
+      freeCameraControls.removeEventListener('unlock', onFreeCameraUnlock);
       controls.dispose();
+      freeCameraControls.dispose();
       draco.dispose();
       // remove UI listeners
       try {
