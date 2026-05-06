@@ -55,6 +55,157 @@ function resolveModelBundle(building) {
   };
 }
 
+const MINEWAYS_BLACK_KEY_THRESHOLD = 12;
+const MINEWAYS_CUTOUT_TILE_PATTERNS = [/_bars$/i, /_grate$/i];
+
+function createFullbrightMaterial(sourceMaterial) {
+  const fullbrightMaterial = new THREE.MeshBasicMaterial();
+  fullbrightMaterial.copy(sourceMaterial);
+  if (sourceMaterial?.color) {
+    fullbrightMaterial.color = sourceMaterial.color.clone();
+  }
+  return fullbrightMaterial;
+}
+
+function parseMinewaysAtlasTiles(objText) {
+  if (!objText || !objText.includes('# COMMON_MC_OBJ_START')) {
+    return [];
+  }
+
+  const tiles = [];
+  let currentLabel = '';
+  let currentUvs = [];
+
+  objText.split(/\r?\n/).forEach((line) => {
+    const trimmed = line.trim();
+    const commentMatch = trimmed.match(/^#\s([A-Za-z0-9_]+)$/);
+
+    if (commentMatch) {
+      const nextLabel = commentMatch[1];
+      if (!nextLabel.startsWith('COMMON_MC_OBJ_')) {
+        currentLabel = nextLabel;
+        currentUvs = [];
+      } else {
+        currentLabel = '';
+        currentUvs = [];
+      }
+      return;
+    }
+
+    if (!currentLabel || !trimmed.startsWith('vt ')) {
+      if (trimmed && !trimmed.startsWith('#')) {
+        currentLabel = '';
+        currentUvs = [];
+      }
+      return;
+    }
+
+    const [, rawU, rawV] = trimmed.split(/\s+/);
+    const u = Number(rawU);
+    const v = Number(rawV);
+    if (!Number.isFinite(u) || !Number.isFinite(v)) return;
+
+    currentUvs.push({ u, v });
+    if (currentUvs.length < 4) return;
+
+    tiles.push({
+      name: currentLabel,
+      minU: Math.min(...currentUvs.map((entry) => entry.u)),
+      maxU: Math.max(...currentUvs.map((entry) => entry.u)),
+      minV: Math.min(...currentUvs.map((entry) => entry.v)),
+      maxV: Math.max(...currentUvs.map((entry) => entry.v))
+    });
+    currentLabel = '';
+    currentUvs = [];
+  });
+
+  return tiles;
+}
+
+function shouldApplyMinewaysCutout(tileName) {
+  return MINEWAYS_CUTOUT_TILE_PATTERNS.some((pattern) => pattern.test(tileName));
+}
+
+function createMinewaysCutoutTexture(sourceTexture, atlasTiles) {
+  const cutoutTiles = atlasTiles.filter((tile) => shouldApplyMinewaysCutout(tile.name));
+  if (!sourceTexture || !cutoutTiles.length) return null;
+
+  const sourceImage = sourceTexture.image;
+  const width = sourceImage?.naturalWidth || sourceImage?.videoWidth || sourceImage?.width || 0;
+  const height = sourceImage?.naturalHeight || sourceImage?.videoHeight || sourceImage?.height || 0;
+  if (!width || !height) return null;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+
+  ctx.drawImage(sourceImage, 0, 0, width, height);
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const { data } = imageData;
+  let changed = false;
+
+  cutoutTiles.forEach((tile) => {
+    const left = Math.max(0, Math.floor(tile.minU * width));
+    const right = Math.min(width, Math.ceil(tile.maxU * width));
+    const top = Math.max(0, Math.floor((1 - tile.maxV) * height));
+    const bottom = Math.min(height, Math.ceil((1 - tile.minV) * height));
+
+    for (let y = top; y < bottom; y += 1) {
+      for (let x = left; x < right; x += 1) {
+        const pixelIndex = (y * width + x) * 4;
+        const maxChannel = Math.max(data[pixelIndex], data[pixelIndex + 1], data[pixelIndex + 2]);
+        if (maxChannel <= MINEWAYS_BLACK_KEY_THRESHOLD) {
+          data[pixelIndex + 3] = 0;
+          changed = true;
+        } else {
+          data[pixelIndex + 3] = 255;
+        }
+      }
+    }
+  });
+
+  if (!changed) return null;
+
+  ctx.putImageData(imageData, 0, 0);
+
+  const nextTexture = sourceTexture.clone();
+  nextTexture.image = canvas;
+  nextTexture.needsUpdate = true;
+  return nextTexture;
+}
+
+function applyMinewaysCutoutFix(rootNode, atlasTiles) {
+  const cutoutTiles = atlasTiles.filter((tile) => shouldApplyMinewaysCutout(tile.name));
+  if (!rootNode || !cutoutTiles.length) return;
+
+  const patchedTextures = new WeakMap();
+  const patchedMaterials = new WeakSet();
+
+  rootNode.traverse((node) => {
+    if (!node.isMesh) return;
+
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    materials.forEach((material) => {
+      if (!material?.map || patchedMaterials.has(material)) return;
+
+      if (!patchedTextures.has(material.map)) {
+        patchedTextures.set(material.map, createMinewaysCutoutTexture(material.map, cutoutTiles));
+      }
+
+      const patchedTexture = patchedTextures.get(material.map);
+      if (!patchedTexture) return;
+
+      material.map = patchedTexture;
+      material.alphaTest = Math.max(material.alphaTest || 0, 0.5);
+      material.needsUpdate = true;
+      patchedMaterials.add(material);
+    });
+  });
+}
+
 export function renderViewerView(container, { id, onBack }) {
   const mapped = BUILDINGS_CONFIG.map(buildCardResource);
   const building = mapped.find((item) => item.id === id);
@@ -382,6 +533,17 @@ export function renderViewerView(container, { id, onBack }) {
       }
     };
 
+    function finalizeObjLoad(loadedObj, atlasTilesPromise, onSuccess) {
+      Promise.resolve(atlasTilesPromise)
+        .then((atlasTiles) => {
+          applyMinewaysCutoutFix(loadedObj, atlasTiles || []);
+        })
+        .catch(() => {})
+        .finally(() => {
+          onSuccess(loadedObj);
+        });
+    }
+
     function applyFullbright(enable) {
       const targetNodes = [];
       if (model) targetNodes.push(model);
@@ -397,20 +559,9 @@ export function renderViewerView(container, { id, onBack }) {
             }
             const mats = node.material;
             if (Array.isArray(mats)) {
-              node.material = mats.map((m) => {
-                const mb = new THREE.MeshBasicMaterial({
-                  map: m.map || null,
-                  color: m.color ? m.color.clone() : new THREE.Color(0xffffff),
-                  skinning: m.skinning || false
-                });
-                return mb;
-              });
+              node.material = mats.map((m) => createFullbrightMaterial(m));
             } else {
-              node.material = new THREE.MeshBasicMaterial({
-                map: mats.map || null,
-                color: mats.color ? mats.color.clone() : new THREE.Color(0xffffff),
-                skinning: mats.skinning || false
-              });
+              node.material = createFullbrightMaterial(mats);
             }
           } else {
             const orig = originalMaterials.get(node.uuid);
@@ -440,6 +591,13 @@ export function renderViewerView(container, { id, onBack }) {
       const objDirectory = modelBundle.modelUrl.slice(0, modelBundle.modelUrl.lastIndexOf('/') + 1);
       const objFileName = modelBundle.modelUrl.split('/').pop() || '';
       const objRelativePath = objFileName || modelBundle.modelUrl;
+      const atlasTilesPromise = fetch(modelBundle.modelUrl)
+        .then((resp) => {
+          if (!resp.ok) throw new Error('OBJ fetch failed');
+          return resp.text();
+        })
+        .then(parseMinewaysAtlasTiles)
+        .catch(() => []);
 
       // Determine material/texture directory. Accept either a directory or a single-file texture path.
       let materialDirectory = '';
@@ -473,7 +631,12 @@ export function renderViewerView(container, { id, onBack }) {
           const materials = mtlLoader.parse(mtlText, materialDirectory);
           materials.preload();
           objLoader.setMaterials(materials);
-          objLoader.load(objRelativePath, onModelLoaded, onProgress, onError);
+          objLoader.load(
+            objRelativePath,
+            (loadedObj) => finalizeObjLoad(loadedObj, atlasTilesPromise, onModelLoaded),
+            onProgress,
+            onError
+          );
         })
         .catch(() => {
           // Fallback: try the loader's normal load flow; if that fails, still attempt OBJ alone.
@@ -483,11 +646,21 @@ export function renderViewerView(container, { id, onBack }) {
               materials.preload();
               materials.setTexturePath?.(materialDirectory);
               objLoader.setMaterials(materials);
-              objLoader.load(objRelativePath, onModelLoaded, onProgress, onError);
+              objLoader.load(
+                objRelativePath,
+                (loadedObj) => finalizeObjLoad(loadedObj, atlasTilesPromise, onModelLoaded),
+                onProgress,
+                onError
+              );
             },
             undefined,
             () => {
-              objLoader.load(objRelativePath, onModelLoaded, onProgress, onError);
+              objLoader.load(
+                objRelativePath,
+                (loadedObj) => finalizeObjLoad(loadedObj, atlasTilesPromise, onModelLoaded),
+                onProgress,
+                onError
+              );
             }
           );
         });
@@ -725,11 +898,18 @@ export function renderViewerView(container, { id, onBack }) {
       const loadObjFoundation = (bundle, onSuccess) => {
         const fObjLoader = new OBJLoader();
         const fMtlLoader = new MTLLoader();
-        
+
         const mtlUrl = buildMtlUrl(bundle.modelUrl, bundle.mtlUrl);
         const objDirectory = bundle.modelUrl.slice(0, bundle.modelUrl.lastIndexOf('/') + 1);
         const objFileName = bundle.modelUrl.split('/').pop() || '';
         const objRelativePath = objFileName || bundle.modelUrl;
+        const atlasTilesPromise = fetch(bundle.modelUrl)
+          .then((resp) => {
+            if (!resp.ok) throw new Error('OBJ fetch failed');
+            return resp.text();
+          })
+          .then(parseMinewaysAtlasTiles)
+          .catch(() => []);
 
         let materialDirectory = '';
         if (bundle.texturePath) {
@@ -759,7 +939,12 @@ export function renderViewerView(container, { id, onBack }) {
             const materials = fMtlLoader.parse(mtlText, materialDirectory);
             materials.preload();
             fObjLoader.setMaterials(materials);
-            fObjLoader.load(objRelativePath, onSuccess, undefined, (e) => console.error("Foundation OBJ error", e));
+            fObjLoader.load(
+              objRelativePath,
+              (loadedObj) => finalizeObjLoad(loadedObj, atlasTilesPromise, onSuccess),
+              undefined,
+              (e) => console.error("Foundation OBJ error", e)
+            );
           })
           .catch(() => {
             fMtlLoader.load(
@@ -768,10 +953,21 @@ export function renderViewerView(container, { id, onBack }) {
                 materials.preload();
                 materials.setTexturePath?.(materialDirectory);
                 fObjLoader.setMaterials(materials);
-                fObjLoader.load(objRelativePath, onSuccess, undefined, (e) => console.error("Foundation OBJ error", e));
+                fObjLoader.load(
+                  objRelativePath,
+                  (loadedObj) => finalizeObjLoad(loadedObj, atlasTilesPromise, onSuccess),
+                  undefined,
+                  (e) => console.error("Foundation OBJ error", e)
+                );
               },
               undefined,
-              () => fObjLoader.load(objRelativePath, onSuccess, undefined, (e) => console.error("Foundation OBJ error", e))
+              () =>
+                fObjLoader.load(
+                  objRelativePath,
+                  (loadedObj) => finalizeObjLoad(loadedObj, atlasTilesPromise, onSuccess),
+                  undefined,
+                  (e) => console.error("Foundation OBJ error", e)
+                )
             );
           });
       };
