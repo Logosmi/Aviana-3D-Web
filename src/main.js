@@ -5,6 +5,24 @@ import { renderViewerView } from './views/viewerView.js';
 const app = document.querySelector('#app');
 let activeCleanup = null;
 
+export function getTheme() {
+  return document.documentElement.getAttribute('data-theme') || 'light';
+}
+
+export function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  try { localStorage.setItem('voxcauc-theme', theme); } catch (e) {}
+}
+
+export function toggleTheme() {
+  const current = getTheme();
+  setTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+// Initialize theme from storage
+const saved = (() => { try { return localStorage.getItem('voxcauc-theme'); } catch (e) { return null; } })();
+setTheme(saved || 'light');
+
 function parseHashRoute() {
   const hash = window.location.hash || '#/';
   const [pathPart, queryPart] = hash.replace(/^#/, '').split('?');

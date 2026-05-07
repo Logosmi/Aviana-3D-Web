@@ -214,7 +214,7 @@ export function renderViewerView(container, { id, onBack }) {
       <main class="viewer-root">
         <div class="error-panel">未找到建筑 ID：${encodeHtml(id)}，请返回列表重新选择。</div>
         <div class="viewer-top">
-          <button class="viewer-back" data-act="back">返回列表</button>
+          <button class="viewer-back" data-act="back">[ 返回列表 ]</button>
         </div>
       </main>
     `;
@@ -232,8 +232,8 @@ export function renderViewerView(container, { id, onBack }) {
         <div class="viewer-mini-card">
           <div class="viewer-mini-title">${encodeHtml(building.title)}</div>
           <div class="viewer-mini-actions">
-            <button class="viewer-back" data-act="back">返回</button>
-            <button class="viewer-desc-btn" data-act="show-intro">介绍</button>
+            <button class="viewer-back" data-act="back">[ 返回 ]</button>
+            <button class="viewer-desc-btn" data-act="show-intro">[ 介绍 ]</button>
           </div>
           <div class="viewer-intro-panel hidden" data-el="intro-panel">${encodeHtml(building.description || building.info || '暂无介绍')}</div>
         </div>
@@ -246,9 +246,8 @@ export function renderViewerView(container, { id, onBack }) {
       </div>
 
       <aside class="viewer-dock" data-el="viewer-controls">
-        <!-- controls only, meta moved to top-left mini card -->
         <details class="viewer-foldout">
-          <summary>光源调整</summary>
+          <summary>lighting — 光源调整</summary>
           <div class="viewer-foldout-body">
             <label class="viewer-toggle-line">
               <input type="checkbox" data-el="fullbright" checked />
@@ -259,14 +258,14 @@ export function renderViewerView(container, { id, onBack }) {
               <span>显示光源示意</span>
             </label>
             <div class="viewer-slider-row">
-              <label>方位</label>
+              <label>方位 azimuth</label>
               <div class="viewer-slider-controls">
                 <input type="range" min="-180" max="180" value="44" data-el="light-azimuth" />
                 <input type="number" data-el="light-azimuth-num" value="44" />
               </div>
             </div>
             <div class="viewer-slider-row">
-              <label>仰俯</label>
+              <label>仰俯 elevation</label>
               <div class="viewer-slider-controls">
                 <input type="range" min="-90" max="90" value="60" data-el="light-elevation" />
                 <input type="number" data-el="light-elevation-num" value="60" />
@@ -276,9 +275,9 @@ export function renderViewerView(container, { id, onBack }) {
         </details>
 
         <details class="viewer-foldout">
-          <summary>模型控制</summary>
+          <summary>model — 模型控制</summary>
           <div class="viewer-foldout-body">
-            <div class="viewer-section-title">控制对象</div>
+            <div class="viewer-section-title">控制对象 target</div>
             <div class="viewer-bg-row viewer-bg-row--compact">
               <select class="viewer-select" data-el="target-select">
                 <option value="model" selected>主体模型</option>
@@ -287,33 +286,33 @@ export function renderViewerView(container, { id, onBack }) {
             </div>
 
             <div class="viewer-slider-row">
-              <label>缩放比例</label>
+              <label>缩放比例 scale</label>
               <div class="viewer-slider-controls">
                 <input type="range" min="0.1" max="100" step="0.1" value="1" data-el="target-scale" />
                 <input type="number" data-el="target-scale-num" value="1" step="0.1" />
               </div>
             </div>
 
-            <div class="viewer-section-title">位置平移</div>
+            <div class="viewer-section-title">位置平移 translate</div>
             <div class="viewer-translate-grid">
-              <button type="button" class="viewer-translate-btn viewer-translate-btn--up" data-act="move-model" data-axis="y" data-dir="1">上</button>
-              <button type="button" class="viewer-translate-btn viewer-translate-btn--front" data-act="move-model" data-axis="z" data-dir="1">前</button>
-              <button type="button" class="viewer-translate-btn viewer-translate-btn--left" data-act="move-model" data-axis="x" data-dir="-1">左</button>
-              <button type="button" class="viewer-translate-btn viewer-translate-btn--reset" data-act="reset-model">复位</button>
-              <button type="button" class="viewer-translate-btn viewer-translate-btn--right" data-act="move-model" data-axis="x" data-dir="1">右</button>
-              <button type="button" class="viewer-translate-btn viewer-translate-btn--back" data-act="move-model" data-axis="z" data-dir="-1">后</button>
-              <button type="button" class="viewer-translate-btn viewer-translate-btn--down" data-act="move-model" data-axis="y" data-dir="-1">下</button>
+              <button type="button" class="viewer-translate-btn viewer-translate-btn--up" data-act="move-model" data-axis="y" data-dir="1">↑ 上</button>
+              <button type="button" class="viewer-translate-btn viewer-translate-btn--front" data-act="move-model" data-axis="z" data-dir="1">↑ 前</button>
+              <button type="button" class="viewer-translate-btn viewer-translate-btn--left" data-act="move-model" data-axis="x" data-dir="-1">← 左</button>
+              <button type="button" class="viewer-translate-btn viewer-translate-btn--reset" data-act="reset-model">⟳ 复位</button>
+              <button type="button" class="viewer-translate-btn viewer-translate-btn--right" data-act="move-model" data-axis="x" data-dir="1">→ 右</button>
+              <button type="button" class="viewer-translate-btn viewer-translate-btn--back" data-act="move-model" data-axis="z" data-dir="-1">↓ 后</button>
+              <button type="button" class="viewer-translate-btn viewer-translate-btn--down" data-act="move-model" data-axis="y" data-dir="-1">↓ 下</button>
             </div>
             <div class="viewer-translate-hint viewer-translate-hint--spaced">点击可按步长平移模型，便于微调构图。</div>
             
-            <div class="viewer-section-title">角度旋转</div>
+            <div class="viewer-section-title">角度旋转 rotate</div>
             <div class="viewer-translate-grid">
-              <button type="button" class="viewer-translate-btn" data-act="rotate-model" data-axis="x" data-dir="1">X轴 +90°</button>
-              <button type="button" class="viewer-translate-btn" data-act="rotate-model" data-axis="y" data-dir="1">Y轴 +90°</button>
-              <button type="button" class="viewer-translate-btn" data-act="rotate-model" data-axis="z" data-dir="1">Z轴 +90°</button>
-              <button type="button" class="viewer-translate-btn" data-act="rotate-model" data-axis="x" data-dir="-1">X轴 -90°</button>
-              <button type="button" class="viewer-translate-btn" data-act="rotate-model" data-axis="y" data-dir="-1">Y轴 -90°</button>
-              <button type="button" class="viewer-translate-btn" data-act="rotate-model" data-axis="z" data-dir="-1">Z轴 -90°</button>
+              <button type="button" class="viewer-translate-btn" data-act="rotate-model" data-axis="x" data-dir="1">X +90°</button>
+              <button type="button" class="viewer-translate-btn" data-act="rotate-model" data-axis="y" data-dir="1">Y +90°</button>
+              <button type="button" class="viewer-translate-btn" data-act="rotate-model" data-axis="z" data-dir="1">Z +90°</button>
+              <button type="button" class="viewer-translate-btn" data-act="rotate-model" data-axis="x" data-dir="-1">X -90°</button>
+              <button type="button" class="viewer-translate-btn" data-act="rotate-model" data-axis="y" data-dir="-1">Y -90°</button>
+              <button type="button" class="viewer-translate-btn" data-act="rotate-model" data-axis="z" data-dir="-1">Z -90°</button>
             </div>
             
             <label class="viewer-toggle-line viewer-toggle-line--divider">
@@ -324,11 +323,11 @@ export function renderViewerView(container, { id, onBack }) {
         </details>
 
         <details class="viewer-foldout">
-          <summary>背景调整</summary>
+          <summary>viewport — 背景调整</summary>
           <div class="viewer-foldout-body">
             <div class="viewer-bg-row">
               <label for="viewer-bg-color">背景色</label>
-              <input id="viewer-bg-color" type="color" value="#aca9a9" data-el="bg-color" />
+              <input id="viewer-bg-color" type="color" value="#09121d" data-el="bg-color" />
             </div>
 
             <label class="viewer-toggle-line viewer-toggle-line--spaced">
@@ -353,7 +352,7 @@ export function renderViewerView(container, { id, onBack }) {
 
       <div class="loading-mask" data-el="loading-mask">
         <div class="loading-box">
-          <div>正在加载：${encodeHtml(building.title)}</div>
+          <div>> 正在加载：${encodeHtml(building.title)}</div>
           <div style="margin-top:8px" data-el="progress-text">0%</div>
           <div class="loading-bar"><div class="loading-fill" data-el="progress-fill" style="width:0%"></div></div>
         </div>
@@ -367,7 +366,7 @@ export function renderViewerView(container, { id, onBack }) {
       </div>
     </div>
 
-    <button class="viewer-author-cta" data-act="show-author">改造者：${encodeHtml(building.author || '未知')}</button>
+    <button class="viewer-author-cta" data-act="show-author">$ author --关于 ${encodeHtml(building.author || '未知')}</button>
   `;
 
   let progress = 0;

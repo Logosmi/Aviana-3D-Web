@@ -1,5 +1,6 @@
 import { BUILDINGS_CONFIG } from '../config/buildings.js';
 import { buildCardResource, PLACEHOLDER_IMAGE } from '../lib/modelResolver.js';
+import { getTheme, setTheme, toggleTheme } from '../main.js';
 
 const INTRO_SLIDES = [
   {
@@ -10,7 +11,7 @@ const INTRO_SLIDES = [
   {
     title: '关于我们的项目',
     content:
-      '欢迎来到“像素中航大”！我们是一支由来自中航大各个学院的本科生组成的团队，用现代科技为百年中航大注入了新的活力。\n\n我们想向那些因地域限制无法来到中航大的人们分享中航大的景色，传递中航大的精神。',
+      '欢迎来到"像素中航大"！我们是一支由来自中航大各个学院的本科生组成的团队，用现代科技为百年中航大注入了新的活力。\n\n我们想向那些因地域限制无法来到中航大的人们分享中航大的景色，传递中航大的精神。',
     bg: '/assets/cards/demo.png'
   },
   {
@@ -124,13 +125,22 @@ function makeSandboxItemHtml(item, card, index) {
   `;
 }
 
+function makeThemeToggleHtml() {
+  const isDark = getTheme() === 'dark';
+  return `
+    <button class="theme-toggle" data-act="toggle-theme" aria-label="切换主题" title="切换主题">
+      <span class="icon-sun">☀</span>
+      <span class="icon-moon">☽</span>
+    </button>
+  `;
+}
+
 export function renderHomeView(container, { onOpenModel, initialView = 'intro' }) {
   const cards = BUILDINGS_CONFIG.map(buildCardResource);
   const sandboxCatalog = cards.filter((card) => card.sandboxEnabled);
   const sandboxCardMap = new Map(sandboxCatalog.map((card) => [card.id, card]));
   let activeTab = 'campus';
   let slideIndex = 0;
-  let introVisible = initialView !== 'showcase';
   let sandboxSequence = 0;
   let sandboxDragState = null;
   let sandboxItems = sandboxCatalog.slice(0, Math.min(2, sandboxCatalog.length)).map((card, index) => {
@@ -148,91 +158,98 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
     <main class="home-root">
       <div class="atmosphere"></div>
 
-      <header class="top-bar">
-        <div class="logo-block">
-          <p class="logo-kicker">VOXEL CAUC</p>
-          <h1>虚拟校园档案馆</h1>
-        </div>
-      </header>
-
-      <nav class="switcher">
-        <button class="switch" data-tab="campus">东丽校区</button>
-        <button class="switch" data-tab="about">关于</button>
-        <div class="switch-track"></div>
-      </nav>
-
-      <section class="panel" id="campus-panel">
-        <div class="grid">
-          ${cards.map(makeCardHtml).join('')}
-        </div>
-      </section>
-
-      <section class="panel about hidden" id="about-panel">
-        <div class="about-layout">
-          <div class="about-card">
-            <h2>项目简介</h2>
-            <p>${ABOUT_INFO}</p>
-            <h3>版本信息</h3>
-            <p>v0.0.1</p>
-            <h3>交流群</h3>
-            <img src="/assets/qrcode_group.jpg" alt="交流群二维码" height="200" />
-            <p>CAUCraft 神人竞技场：496981669</p>
-            <p class="icp">暂无</p>
+      <div class="home-content">
+        <header class="top-bar">
+          <div class="logo-block">
+            <p class="logo-kicker"><span class="cursor-prompt">></span> voxelcauc --launch</p>
+            <h1>虚拟校园档案馆</h1>
           </div>
+          ${makeThemeToggleHtml()}
+        </header>
 
-          <section class="about-sandbox">
-            <div class="about-sandbox-head">
-              <div>
-                <p class="about-sandbox-kicker">Sandbox</p>
-                <h2>模型沙盒分区</h2>
-              </div>
-              <button type="button" class="sandbox-clear-btn" data-act="clear-sandbox">清空</button>
-            </div>
-            <p class="about-sandbox-copy">
-              这里会收纳已启用的模型卡片。点击下方仓库可添加，拖拽卡片可自由摆放，用于快速浏览和编排展示组合。
-            </p>
-            <div class="sandbox-meta">
-              <span data-el="sandbox-count">0 / 0 已摆放</span>
-              <span>拖拽卡片微调位置</span>
-            </div>
-            <div class="sandbox-board" data-el="sandbox-board"></div>
-            <div class="sandbox-library">
-              <div class="sandbox-library-head">
-                <h3>已启用模型仓库</h3>
-                <p>${sandboxCatalog.length} 个模型可加入沙盒</p>
-              </div>
-              <div class="sandbox-library-grid" data-el="sandbox-library"></div>
-            </div>
-          </section>
-        </div>
-      </section>
-
-      <div class="intro">
-        <div class="intro-slides">
-          ${INTRO_SLIDES.map((slide, idx) => makeSlideHtml(slide, idx, idx === slideIndex)).join('')}
-        </div>
-        <button class="intro-edge-nav left" data-intro-nav="prev" aria-label="上一页" title="上一页">&lt;</button>
-        <button class="intro-edge-nav right" data-intro-nav="next" aria-label="下一页" title="下一页">&gt;</button>
-        <div class="intro-controls">
-          <div class="intro-dots">
-            ${INTRO_SLIDES.map(
-              (_, idx) =>
-                `<button class="dot ${idx === slideIndex ? 'active' : ''}" data-slide-to="${idx}" aria-label="跳转到第${idx + 1}页"></button>`
-            ).join('')}
+        <section class="intro" data-el="intro-hero">
+          <div class="intro-slides">
+            ${INTRO_SLIDES.map((slide, idx) => makeSlideHtml(slide, idx, idx === slideIndex)).join('')}
           </div>
-        </div>
+          <button class="intro-edge-nav left" data-intro-nav="prev" aria-label="上一页" title="上一页">&lt;</button>
+          <button class="intro-edge-nav right" data-intro-nav="next" aria-label="下一页" title="下一页">&gt;</button>
+          <div class="intro-controls">
+            <div class="intro-dots">
+              ${INTRO_SLIDES.map(
+                (_, idx) =>
+                  `<button class="dot ${idx === slideIndex ? 'active' : ''}" data-slide-to="${idx}" aria-label="跳转到第${idx + 1}页"></button>`
+              ).join('')}
+            </div>
+          </div>
+          <div class="scroll-hint">
+            <span>Scroll</span>
+            <div class="scroll-hint-arrow"></div>
+          </div>
+        </section>
+
+        <nav class="switcher">
+          <button class="switch" data-tab="campus">[ 东丽校区 ]</button>
+          <button class="switch" data-tab="about">[ 关于项目 ]</button>
+          <div class="switch-track"></div>
+        </nav>
+
+        <section class="panel" id="campus-panel">
+          <div class="grid">
+            ${cards.map(makeCardHtml).join('')}
+          </div>
+        </section>
+
+        <section class="panel about hidden" id="about-panel">
+          <div class="about-layout">
+            <div class="about-card">
+              <h2>项目简介</h2>
+              <p>${ABOUT_INFO}</p>
+              <h3>版本信息</h3>
+              <p>v0.0.1</p>
+              <h3>交流群</h3>
+              <img src="/assets/qrcode_group.jpg" alt="交流群二维码" height="200" />
+              <p>CAUCraft 神人竞技场：496981669</p>
+              <p class="icp">暂无</p>
+            </div>
+
+            <section class="about-sandbox">
+              <div class="about-sandbox-head">
+                <div>
+                  <p class="about-sandbox-kicker">Sandbox</p>
+                  <h2>模型沙盒分区</h2>
+                </div>
+                <button type="button" class="sandbox-clear-btn" data-act="clear-sandbox">$ clear</button>
+              </div>
+              <p class="about-sandbox-copy">
+                这里会收纳已启用的模型卡片。点击下方仓库可添加，拖拽卡片可自由摆放，用于快速浏览和编排展示组合。
+              </p>
+              <div class="sandbox-meta">
+                <span data-el="sandbox-count">0 / 0 已摆放</span>
+                <span>拖拽卡片微调位置</span>
+              </div>
+              <div class="sandbox-board" data-el="sandbox-board"></div>
+              <div class="sandbox-library">
+                <div class="sandbox-library-head">
+                  <h3>已启用模型仓库</h3>
+                  <p>${sandboxCatalog.length} 个模型可加入沙盒</p>
+                </div>
+                <div class="sandbox-library-grid" data-el="sandbox-library"></div>
+              </div>
+            </section>
+          </div>
+        </section>
       </div>
     </main>
   `;
 
   const rootEl = container.querySelector('.home-root');
-  const introEl = container.querySelector('.intro');
   const switchTrack = container.querySelector('.switch-track');
   const campusPanel = container.querySelector('#campus-panel');
   const aboutPanel = container.querySelector('#about-panel');
   const sandboxBoard = container.querySelector('[data-el="sandbox-board"]');
   const sandboxLibrary = container.querySelector('[data-el="sandbox-library"]');
   const sandboxCount = container.querySelector('[data-el="sandbox-count"]');
+  const introHero = container.querySelector('[data-el="intro-hero"]');
 
   function createSandboxItem(modelId) {
     const preset = SANDBOX_PRESET_POSITIONS[sandboxSequence % SANDBOX_PRESET_POSITIONS.length];
@@ -333,24 +350,6 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
     });
   }
 
-  function syncIntroUi() {
-    introEl?.classList.toggle('is-offstage', !introVisible);
-    rootEl?.classList.toggle('showcase-mode', !introVisible);
-    if (showcaseBackBtn) showcaseBackBtn.style.display = introVisible ? 'none' : 'flex';
-  }
-
-  function enterShowcase() {
-    if (!introVisible) return;
-    introVisible = false;
-    syncIntroUi();
-  }
-
-  function backToIntro() {
-    if (introVisible) return;
-    introVisible = true;
-    syncIntroUi();
-  }
-
   function turnSlide(direction) {
     if (direction === 'next') {
       slideIndex = (slideIndex + 1) % INTRO_SLIDES.length;
@@ -360,6 +359,18 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
     syncSlideUi();
   }
 
+  // ── Theme toggle ───────────────────────────────────────
+  container.querySelector('[data-act="toggle-theme"]')?.addEventListener('click', () => {
+    toggleTheme();
+    // Update toggle display
+    const themeToggle = container.querySelector('[data-act="toggle-theme"]');
+    if (themeToggle) {
+      const nextTheme = getTheme() === 'dark' ? 'light' : 'dark';
+      // The CSS handles the icon visibility
+    }
+  });
+
+  // ── Tab switching ──────────────────────────────────────
   container.querySelectorAll('.switch').forEach((btn) => {
     btn.addEventListener('click', () => {
       activeTab = btn.dataset.tab || 'campus';
@@ -367,14 +378,16 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
     });
   });
 
+  // ── Card clicks ────────────────────────────────────────
   container.querySelectorAll('.card').forEach((cardEl) => {
     cardEl.addEventListener('click', () => {
       const target = cards.find((item) => item.id === cardEl.dataset.id);
       if (!target) return;
-      onOpenModel(target.id, introVisible ? 'intro' : 'showcase');
+      onOpenModel(target.id, 'showcase');
     });
   });
 
+  // ── Sandbox interactions ───────────────────────────────
   aboutPanel?.addEventListener('click', (evt) => {
     const clearButton = evt.target.closest('[data-act="clear-sandbox"]');
     if (clearButton) {
@@ -400,6 +413,7 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
     }
   });
 
+  // ── Slide navigation ───────────────────────────────────
   container.querySelectorAll('[data-slide-to]').forEach((dotButton) => {
     dotButton.addEventListener('click', () => {
       const targetIndex = Number(dotButton.getAttribute('data-slide-to'));
@@ -411,22 +425,20 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
 
   container.querySelectorAll('[data-intro-nav]').forEach((navButton) => {
     navButton.addEventListener('click', () => {
-      if (!introVisible) return;
       turnSlide(navButton.getAttribute('data-intro-nav') === 'next' ? 'next' : 'prev');
     });
   });
 
+  // ── Swipe / Gesture (slide navigation only) ────────────
   let startX = 0;
   let startY = 0;
   let startTime = 0;
   let tracking = false;
   let activePointerId = null;
   let activeTouchId = null;
-  let showcaseBackBtn = null;
   let wheelLockUntil = 0;
 
-  const INTRO_TO_SHOWCASE_DISTANCE = 92;
-  const SHOWCASE_TO_INTRO_DISTANCE = 42;
+  const SWIPE_MIN_DISTANCE = 42;
   const SWIPE_MAX_DURATION = 700;
 
   function handleSwipe(dx, dy, elapsed) {
@@ -435,21 +447,10 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
 
-    if (absX < SHOWCASE_TO_INTRO_DISTANCE && absY < SHOWCASE_TO_INTRO_DISTANCE) return;
+    if (absX < SWIPE_MIN_DISTANCE && absY < SWIPE_MIN_DISTANCE) return;
 
     if (absX > absY) {
-      if (!introVisible) return;
       turnSlide(dx < 0 ? 'next' : 'prev');
-      return;
-    }
-
-    if (introVisible && dy < -INTRO_TO_SHOWCASE_DISTANCE) {
-      enterShowcase();
-      return;
-    }
-
-    if (!introVisible && dy > SHOWCASE_TO_INTRO_DISTANCE) {
-      backToIntro();
     }
   }
 
@@ -460,7 +461,6 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
     startX = evt.clientX;
     startY = evt.clientY;
     startTime = Date.now();
-    // Don't capture mouse pointers — capturing mouse can prevent click events
     if (evt.pointerType !== 'mouse') {
       rootEl?.setPointerCapture?.(evt.pointerId);
     }
@@ -478,20 +478,6 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
       clientY = t.clientY;
     } else {
       if (activePointerId !== null && evt.pointerId !== activePointerId) return;
-    }
-
-    // detect early downward swipe on showcase to return
-    const dx = clientX - startX;
-    const dy = clientY - startY;
-    if (!introVisible && Math.abs(dy) > Math.abs(dx) && dy > SHOWCASE_TO_INTRO_DISTANCE) {
-      const scTop = (rootEl && rootEl.scrollTop) || 0;
-      if (scTop <= 8 || startY < 120) {
-        backToIntro();
-        tracking = false;
-        if (!evt.type || !evt.type.startsWith('touch')) {
-          try { rootEl?.releasePointerCapture?.(evt.pointerId); } catch (e) {}
-        }
-      }
     }
   }
 
@@ -542,23 +528,9 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
     const absX = Math.abs(evt.deltaX);
     const absY = Math.abs(evt.deltaY);
 
-    if (introVisible && absX > absY && absX > 40) {
+    if (absX > absY && absX > 40) {
       turnSlide(evt.deltaX > 0 ? 'next' : 'prev');
       wheelLockUntil = now + 420;
-      return;
-    }
-
-    if (absY <= absX) return;
-
-    if (introVisible && evt.deltaY > 40) {
-      enterShowcase();
-      wheelLockUntil = now + 520;
-      return;
-    }
-
-    if (!introVisible && evt.deltaY < -40 && (rootEl?.scrollTop || 0) <= 2) {
-      backToIntro();
-      wheelLockUntil = now + 520;
     }
   }
 
@@ -567,33 +539,18 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
     if (targetTag === 'INPUT' || targetTag === 'TEXTAREA') return;
 
     if (evt.key === 'ArrowLeft') {
-      if (!introVisible) return;
       evt.preventDefault();
       turnSlide('prev');
       return;
     }
 
     if (evt.key === 'ArrowRight') {
-      if (!introVisible) return;
       evt.preventDefault();
       turnSlide('next');
-      return;
-    }
-
-    if (evt.key === 'ArrowDown') {
-      if (!introVisible) return;
-      evt.preventDefault();
-      enterShowcase();
-      return;
-    }
-
-    if (evt.key === 'ArrowUp') {
-      if (introVisible || (rootEl?.scrollTop || 0) > 2) return;
-      evt.preventDefault();
-      backToIntro();
     }
   }
 
+  // ── Sandbox drag ───────────────────────────────────────
   function onSandboxPointerDown(evt) {
     if (activeTab !== 'about') return;
     if (evt.button !== 0) return;
@@ -651,12 +608,12 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
     }
   }
 
+  // ── Event binding ──────────────────────────────────────
   const gestureTarget = document;
   gestureTarget.addEventListener('pointerdown', onPointerDown, true);
   gestureTarget.addEventListener('pointermove', onPointerMove, true);
   gestureTarget.addEventListener('pointerup', onPointerEnd, true);
   gestureTarget.addEventListener('pointercancel', onPointerCancel, true);
-  // touch listeners use capture and are non-passive so we can intercept swipes
   gestureTarget.addEventListener('touchstart', onTouchStart, { passive: false, capture: true });
   gestureTarget.addEventListener('touchmove', onPointerMove, { passive: false, capture: true });
   gestureTarget.addEventListener('touchend', onTouchEnd, { passive: false, capture: true });
@@ -671,22 +628,15 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
 
   syncTabUi();
   syncSlideUi();
-  syncIntroUi();
   syncSandboxUi();
 
-  function onShowcaseBackClick(e) {
-    e.stopPropagation();
-    backToIntro();
+  // ── Scroll to content for showcase mode ────────────────
+  if (initialView === 'showcase' && introHero) {
+    requestAnimationFrame(() => {
+      const heroBottom = introHero.getBoundingClientRect().bottom + window.scrollY;
+      window.scrollTo({ top: heroBottom, behavior: 'instant' });
+    });
   }
-  // create a fixed back button for the showcase (so it doesn't slide with intro)
-  showcaseBackBtn = document.createElement('button');
-  showcaseBackBtn.className = 'intro-back-btn';
-  showcaseBackBtn.setAttribute('aria-label', '回到主页');
-  showcaseBackBtn.title = '回到主页';
-  showcaseBackBtn.textContent = '⤴';
-  showcaseBackBtn.style.display = introVisible ? 'none' : 'flex';
-  rootEl?.appendChild(showcaseBackBtn);
-  showcaseBackBtn.addEventListener('click', onShowcaseBackClick);
 
   return () => {
     gestureTarget.removeEventListener('pointerdown', onPointerDown, true);
@@ -704,8 +654,6 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
     window.removeEventListener('pointerup', onSandboxPointerUp);
     window.removeEventListener('pointercancel', onSandboxPointerUp);
     window.removeEventListener('resize', onSandboxResize);
-    showcaseBackBtn?.removeEventListener('click', onShowcaseBackClick);
-    showcaseBackBtn?.remove();
     container.innerHTML = '';
   };
 }
