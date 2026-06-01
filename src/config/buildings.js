@@ -26,7 +26,7 @@ export const BUILDINGS_CONFIG = [
     {
         id: "test01",
         title: "Bird",
-        athou: "Unknown",
+        author: "Unknown",
         info: "Unknown",
         description: "Unknow",
         image: "/assets/cards/demo.png",
@@ -36,7 +36,7 @@ export const BUILDINGS_CONFIG = [
     {
         id: "test02",
         title: "Miyu",
-        athou: "Unknown",
+        author: "Unknown",
         info: "Unknown",
         description: "Unknow",
         image: "/assets/cards/demo.png",
@@ -46,7 +46,7 @@ export const BUILDINGS_CONFIG = [
     {
         id: "test03",
         title: "Building1",
-        athou: "Unknown",
+        author: "Unknown",
         info: "Unknown",
         description: "Unknow",
         image: "/assets/cards/demo.png",
@@ -59,7 +59,7 @@ export const BUILDINGS_CONFIG = [
     {
         id: "test04",
         title: "Building2",
-        athou: "Unknown",
+        author: "Unknown",
         info: "Unknown",
         description: "Unknow",
         image: "/assets/cards/demo.png",

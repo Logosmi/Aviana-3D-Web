@@ -1158,14 +1158,8 @@ export function renderViewerView(container, { id, onBack }) {
         const authorCta = container.querySelector('[data-act="show-author"]');
         const introPanel = container.querySelector('[data-el="intro-panel"]');
         const authorPanel = container.querySelector('[data-el="author-panel"]');
-        introBtn?.removeEventListener('click', () => {
-          if (!introPanel) return;
-          introPanel.classList.toggle('hidden');
-        });
-        authorCta?.removeEventListener('click', () => {
-          if (!authorPanel) return;
-          authorPanel.classList.toggle('hidden');
-        });
+        introBtn?.removeEventListener('click', onIntroToggle);
+        authorCta?.removeEventListener('click', onAuthorToggle);
       } catch (e) {
         // ignore
       }
@@ -1185,19 +1179,19 @@ export function renderViewerView(container, { id, onBack }) {
     };
   }
 
-  backButton?.addEventListener('click', onBack);
-
-  // intro toggle
-  introBtn?.addEventListener('click', () => {
+  const onIntroToggle = () => {
     if (!introPanel) return;
     introPanel.classList.toggle('hidden');
-  });
+  };
 
-  // author CTA (bottom-right) show info
-  authorCta?.addEventListener('click', () => {
+  const onAuthorToggle = () => {
     if (!authorPanel) return;
     authorPanel.classList.toggle('hidden');
-  });
+  };
+
+  backButton?.addEventListener('click', onBack);
+  introBtn?.addEventListener('click', onIntroToggle);
+  authorCta?.addEventListener('click', onAuthorToggle);
 
   syncUi();
   bootThree();

@@ -362,12 +362,7 @@ export function renderHomeView(container, { onOpenModel, initialView = 'intro' }
   // ── Theme toggle ───────────────────────────────────────
   container.querySelector('[data-act="toggle-theme"]')?.addEventListener('click', () => {
     toggleTheme();
-    // Update toggle display
-    const themeToggle = container.querySelector('[data-act="toggle-theme"]');
-    if (themeToggle) {
-      const nextTheme = getTheme() === 'dark' ? 'light' : 'dark';
-      // The CSS handles the icon visibility
-    }
+    // CSS handles the icon visibility
   });
 
   // ── Tab switching ──────────────────────────────────────
